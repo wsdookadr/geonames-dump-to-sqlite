@@ -23,7 +23,7 @@ HIERARCHY_TXT_FILE = "hierarchy.txt"
 # Handle argument parsing here
 parser = argparse.ArgumentParser()
 parser.add_argument( "-t", "--temp-dir", default=".", help="Temporary work directory")
-parser.add_argument( "-o", "--out",      default="locations.sqlite3", help="Output file name for the SQLite3 DB")
+parser.add_argument( "-o", "--out",      default="geonames.sqlite3", help="Output file name for the SQLite3 DB")
 args = parser.parse_args()
 
 # And get the arguments of interest and put them in our constants.
