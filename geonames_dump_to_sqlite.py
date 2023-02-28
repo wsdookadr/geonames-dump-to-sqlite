@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python3
 
 """
 Utility to dump the data from geonames.org to an SQLite3 database.
@@ -10,7 +10,7 @@ import sqlite3
 import codecs
 import argparse
 import shutil
-import urllib2
+import urllib.request
 import zipfile
 
 # Some constants; well, that's how they're defined on the site
@@ -93,18 +93,19 @@ TABLE_FIELDS = [{'parentid'       : 'integer'},
 
 # Simple code to download file (alternative to wget )
 def download_file(url, dst_file):
-    req = urllib2.urlopen(url)
-    with open(dst_file, 'wb') as fp:
-        shutil.copyfileobj(req, fp)
+    with urllib.request.urlopen(url) as response, open(dst_file, 'wb') as f:
+        f.write(response.read())
 
 def create_tables(cur):
     '''
     Create empty tables which will be populated later.
     '''
     for table_name in TABLE_MAPPINGS.values():
-        cur.execute('DROP TABLE IF EXISTS %s' % table_name)
-        table_fields = [ "%s %s" % table_field.items()[0] for table_field in TABLE_FIELDS ]
-        cur.execute('CREATE TABLE %s (%s)' % (table_name, ','.join(table_fields)))
+        cur.execute(f'DROP TABLE IF EXISTS {table_name}')
+
+        fields_types = [ f'{x} {y}' for x,y in [ list(x.items())[0] for x in TABLE_FIELDS ] ]
+        fields = ','.join(fields_types)
+        cur.execute('CREATE TABLE {0} ({1})'.format(table_name, fields))
 
 
 def get_db_links():
@@ -120,7 +121,7 @@ def get_db_links():
         while line != '':
             line_elems = line.split('\t')
             if len(line_elems) != 3:
-                print "Line was not split correctly"
+                print("Line was not split correctly")
                 break
             
             parent_id, child_id = None, None
@@ -146,24 +147,24 @@ def dump_to_db(cur):
         while line != '':
             line_elems = line.split('\t')
             if len(line_elems) != 19:
-                print "Line was not split correctly"
+                print("Line was not split correctly")
                 break
             table_name = TABLE_MAPPINGS.get(line_elems[7].upper())
             parent_id  = rev_links.get(line_elems[0])
             if (table_name is not None) and (parent_id is not None):
                 # clean line elems first
                 line_elems = [ (u'"%s"' % line_elem.strip().replace('"', '""') ) for line_elem in line_elems ]
-                table_fields = [ "%s" % table_field.keys()[0] for table_field in TABLE_FIELDS ]
+                table_fields = [ f'{x}' for x,y in [ list(x.items())[0] for x in TABLE_FIELDS ] ]
                 cur.execute('INSERT INTO %s (%s) VALUES (%s)' % (table_name, ','.join(table_fields), (parent_id + ',' +','.join(line_elems))) )
             line = f.readline()
 
 # The rest of the main code is here
 for _zip_ in [COUNTRIES_ZIP_FILE, HIERARCHY_ZIP_FILE]:
     if not os.path.isfile(_zip_):
-        print "Downloading " + _zip_
+        print("Downloading " + _zip_)
         download_file(BASE_URL + _zip_, os.path.join(TMP_DIR, _zip_))
 
-    print "Extracting all files from " + _zip_
+    print("Extracting all files from " + _zip_)
     z = zipfile.ZipFile(_zip_)
     z.extractall(TMP_DIR)
 
@@ -173,20 +174,20 @@ try:
 
     con = sqlite3.connect(OUT_SQLITE_FILE)
     cur = con.cursor()
-    print "Creating tables in file '%s'" % OUT_SQLITE_FILE
+    print("Creating tables in file '{0}'".format( OUT_SQLITE_FILE))
     create_tables(cur)
-    print "Started parsing and dumping"
+    print("Started parsing and dumping")
     dump_to_db(cur)
     if (os.path.isfile(LOCAL_COUNTRIES_TXT_FILE)):
         os.remove(LOCAL_COUNTRIES_TXT_FILE)
     if (os.path.isfile(LOCAL_HIERARCHY_TXT_FILE)):
         os.remove(LOCAL_HIERARCHY_TXT_FILE)
     con.commit()
-    print "Done."
+    print("Done.")
 
-except sqlite3.Error, e:
+except sqlite3.Error as e:
     con = None
-    print "Error %s:" % e.args[0]
+    print("Error {0}:".format(e.args[0]))
     sys.exit(1)
     
 if (con):
